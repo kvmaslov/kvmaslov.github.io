@@ -2,54 +2,78 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8" />
-    <title>VK Test</title>
-    <!-- Подключаем мост -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>VK Mini App Token</title>
+    <!-- Подключаем VK Bridge -->
     <script src="https://unpkg.com/@vkontakte/vkbridge/dist/vkbridge.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #fff; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        h1 { text-align: center; }
+        button { padding: 12px 24px; background: #0077FF; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .status { margin-top: 15px; color: #666; text-align: center; }
+        .log { margin-top: 15px; padding: 10px; background: #f4f4f4; border-radius: 4px; font-size: 12px; display: none; word-break: break-word; }
+    </style>
 </head>
 <body>
-    <h1 id="status">Загрузка...</h1>
-    <button id="btn" disabled style="padding: 10px; display: block; margin-top: 10px;">Получить токен</button>
-    <pre id="log" style="margin-top: 10px; font-size: 12px; background: #eee; padding: 10px; display: none;"></pre>
+    <h1>Получение токена</h1>
+    <p class="status" id="status">Ожидание загрузки VK Bridge...</p>
+    <button id="btn" disabled>Получить токен</button>
+    <div id="log" class="log"></div>
 
     <script>
-        // 1. Отправляем инициализацию сразу
-        const bridge = VKBridge.send('VKWebAppInit');
-
-        // 2. Ловим ВСЕ ответы
-        bridge.receive((data) => {
-            const statusEl = document.getElementById('status');
-            const btn = document.getElementById('btn');
-            const log = document.getElementById('log');
-
-            if (data.type === 'VKWebAppInit') {
-                console.log('✅ Инициализация прошла успешно!');
-                statusEl.textContent = '✅ VK Bridge готов!';
-                btn.disabled = false;
-                btn.textContent = '🔑 Получить токен для опросов';
-            } 
-            else if (data.type === 'VKWebAppGetAuthTokenResult') {
-                const token = data.detail.access_token;
-                console.log('🔑 ТОКЕН:', token);
-                statusEl.textContent = 'Токен получен (см. консоль)';
-                log.style.display = 'block';
-                log.textContent = 'Токен:\n' + token;
-                alert('Токен скопирован в консоль (F12). Не показывай его никому!');
+        // ГЛАВНАЯ ЗАЩИТА: Ждем, пока глобальный объект VKBridge появится в окне
+        function initApp() {
+            if (typeof VKBridge === 'undefined') {
+                console.log('⏳ VK Bridge ещё не загружен, ждем...');
+                setTimeout(initApp, 100); // Проверяем каждые 100мс
+                return;
             }
-            else if (data.type === 'VKWebAppError') {
-                console.error('❌ Ошибка VK:', data.detail);
-                statusEl.textContent = 'Ошибка: ' + (data.detail.error_msg || 'Неизвестная ошибка');
-                alert('Ошибка: ' + (data.detail.error_msg || 'См. консоль F12'));
-            }
-        });
 
-        // 3. Вешаем клик только когда кнопка активна
-        document.getElementById('btn').addEventListener('click', () => {
-            console.log('🖱️ Запрос токена...');
-            VKBridge.send('VKWebAppGetAuthToken', {
-                group_id: 239900520, 
-                scope: 'wall,polls,offline'
+            console.log('✅ VK Bridge найден! Начинаем работу.');
+            
+            // Отправляем запрос на инициализацию приложения
+            const bridge = VKBridge.send('VKWebAppInit');
+
+            // Слушаем все ответы от VK
+            bridge.receive((data) => {
+                const statusEl = document.getElementById('status');
+                const btn = document.getElementById('btn');
+                const logEl = document.getElementById('log');
+
+                if (data.type === 'VKWebAppInit') {
+                    console.log('✅ Приложение успешно инициализировано платформой VK!');
+                    statusEl.textContent = '✅ VK Bridge готов. Можно работать.';
+                    btn.disabled = false;
+                    btn.textContent = '🔑 Получить токен для опросов';
+                } 
+                else if (data.type === 'VKWebAppGetAuthTokenResult') {
+                    const token = data.detail.access_token;
+                    console.log('🔑 ТОКЕН ПОЛУЧЕН:', token);
+                    statusEl.textContent = 'Токен получен (проверьте консоль)';
+                    logEl.style.display = 'block';
+                    logEl.textContent = 'Токен скопирован в консоль (F12).';
+                    alert('Токен получен! Скопируйте его из консоли браузера (F12).');
+                }
+                else if (data.type === 'VKWebAppError') {
+                    console.error('❌ Ошибка VK:', data.detail);
+                    statusEl.textContent = 'Ошибка: ' + (data.detail.error_msg || 'Неизвестная ошибка');
+                    alert('Ошибка: ' + (data.detail.error_msg || 'См. консоль F12'));
+                }
             });
-        });
+
+            // Вешаем обработчик клика (только после того, как мост точно есть)
+            btn.addEventListener('click', () => {
+                console.log('🖱️ Нажата кнопка. Отправляем запрос токена...');
+                VKBridge.send('VKWebAppGetAuthToken', {
+                    group_id: 239900520, 
+                    scope: 'wall,polls,offline'
+                });
+            });
+        }
+
+        // Запускаем проверку сразу
+        initApp();
     </script>
 </body>
 </html>
