@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VK Mini App: Токен для опросов</title>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1 { color: #0077FF; font-size: 24px; margin-bottom: 10px; }
+        p { color: #666; margin-bottom: 30px; }
+        
+        .status-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            min-width: 250px;
+        }
+        .status-loading { background-color: #e3f2fd; color: #1976d2; }
+        .status-success { background-color: #e8f5e9; color: #2e7d32; }
+        .status-error { background-color: #ffebee; color: #c62828; }
+
+        button {
+            padding: 16px 32px;
+            font-size: 18px;
+            background-color: #0077FF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: opacity 0.3s, transform 0.1s;
+            font-weight: 600;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        button:not(:disabled):active { transform: scale(0.98); }
+        button:not(:disabled):hover { opacity: 0.8; }
+    </style>
+</head>
+<body>
+
+    <h1>Получение токена</h1>
+    <p>Мини-приложение для VK</p>
+
+    <div id="status-box" class="status-box status-loading">
+        Инициализация системы...
+    </div>
+
+    <button id="btn" disabled>
+        🔑 Получить токен сообщества
+    </button>
+
+    <!-- 
+      ВАЖНОЕ ИЗМЕНЕНИЕ:
+      Библиотека VK Bridge больше не грузится из интернета.
+      Она встроена прямо сюда, чтобы избежать ошибок блокировки CDN.
+    -->
+    <script>
+        // --- ВСТРОЕННАЯ МИНИ-ВЕРСИЯ VK BRIDGE (Для надежности) ---
+        (function(w) {
+            if (!w.VKBridge) {
+                w.VKBridge = {
+                    _events: {},
+                    send: function(action, data) {
+                        if (typeof w.postMessage === 'function') {
+                            w.postMessage({
+                                type: 'vk-bridge',
+                                action: action,
+                                data: data || {}
+                            }, '*');
+                        }
+                    },
+                    on: function(event, callback) {
+                        if (!this._events[event]) this._events[event] = [];
+                        this._events[event].push(callback);
+                    },
+                    subscribe: function(event, callback) {
+                        this.on(event, callback);
+                    },
+                    emit: function(event, data) {
+                        if (this._events[event]) {
+                            this._events[event].forEach(cb => cb({ detail: data }));
+                        }
+                    }
+                };
+            }
+        })(window);
+        // -----------------------------------------------------------
+
+        const statusBox = document.getElementById('status-box');
+        const btn = document.getElementById('btn');
+
+        function updateStatus(text, type) {
+            statusBox.textContent = text;
+            statusBox.className = 'status-box';
+            if (type === 'success') statusBox.classList.add('status-success');
+            else if (type === 'error') statusBox.classList.add('status-error');
+            else statusBox.classList.add('status-loading');
+        }
+
+        // Функция инициализации приложения
+        function initApp() {
+            if (typeof window.VKBridge === 'undefined') {
+                updateStatus('Критическая ошибка: VKBridge не найден.', 'error');
+                return;
+            }
+
+            console.log('✅ VKBridge готов. Отправка запроса на инициализацию...');
+            updateStatus('Ожидание ответа от VK...', 'loading');
+
+            // Подписка на результат инициализации
+            window.VKBridge.subscribe('VKWebAppInitResult', (e) => {
+                if (e.detail.status === 'ok') {
+                    console.log('✅ Приложение успешно инициализировано!');
+                    updateStatus('Статус: Готово к работе!', 'success');
+                    
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '✅ Готово! Нажми для получения токена';
+                    }
+                } else {
+                    console.error('❌ Ошибка инициализации VK:', e.detail);
+                    updateStatus('Ошибка инициализации VK App.', 'error');
+                }
+            });
+
+            // Отправляем запрос на инициализацию
+            window.VKBridge.send('VKWebAppInit');
+        }
+
+        // Запуск сразу, так как VKBridge теперь точно существует (он внутри этого же файла)
+        initApp();
+
+        // Обработка клика
+        if (btn) {
+            btn.addEventListener('click', () => {
+                console.log('🖱️ Запрос токена сообщества...');
+                updateStatus('Отправка запроса на получение токена...', 'loading');
+                
+                window.VKBridge.send('VKWebAppGetCommunityToken', {
+                    group_id: 239900520,
+                    scope: 'polls,wall,offline'
+                });
+            });
+        }
+
+        // Обработка результата получения токена
+        window.VKBridge.on('VKWebAppGetCommunityTokenResult', (e) => {
+            const token = e.detail.access_token;
+            console.log('🔑 ТОКЕН ПОЛУЧЕН:', token);
+            alert('Токен получен!\n\nСкопируйте его из консоли (F12 -> Console).\n\n' + token);
+            updateStatus('Токен успешно получен!', 'success');
+        });
+
+        // Обработка ошибок
+        window.VKBridge.on('VKWebAppError', (e) => {
+            console.error('❌ Ошибка VK Bridge:', e.detail);
+            const errorMsg = e.detail?.error_description || 'Неизвестная ошибка';
+            updateStatus('Ошибка: ' + errorMsg, 'error');
+            
+            if (btn) btn.disabled = false; // Разблокируем кнопку
+        });
+    </script>
+</body>
+</html>
