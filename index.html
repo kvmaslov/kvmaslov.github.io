@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>VK Mini App Token</title>
-    <!-- Подключаем VK Bridge через CDN (локальный файл не нужен) -->
+    <!-- Подключаем VK Bridge через CDN -->
     <script src="https://unpkg.com/@vkontakte/vkbridge/dist/vkbridge.js"></script>
     <style>
         body {
@@ -61,64 +61,10 @@
 <body>
     <h1>Получение токена для опросов</h1>
 
-    <!-- Кнопка изначально неактивна — это нормально, пока не загрузится VK Bridge -->
-    <button id="btn" disabled>Получить токен</button>
+    <button id="btn" disabled>Ожидание инициализации...</button>
 
-    <p class="status">Ожидание инициализации VK Bridge...</p>
+    <p class="status">Загрузка VK Bridge...</p>
     <div id="log" class="log"></div>
 
     <script>
-        // Ссылка на глобальный объект VKBridge
-        const VKBridge = window.vkBridge;
-
-        // 1. Инициализируем соединение с VK Bridge
-        VKBridge.send('VKWebAppInit');
-
-        // 2. Слушаем событие инициализации
-        VKBridge.on('VKWebAppInitResult', (e) => {
-            console.log('✅ VK Bridge успешно инициализирован!', e);
-            
-            const btn = document.getElementById('btn');
-            const status = document.querySelector('.status');
-            const log = document.getElementById('log');
-
-            // Активируем кнопку
-            btn.disabled = false;
-            btn.textContent = '✅ Токен готов, нажать для получения';
-            status.textContent = 'VK Bridge готов. Нажмите кнопку.';
-
-            // 3. Вешаем обработчик клика на кнопку
-            btn.addEventListener('click', () => {
-                console.log('🖱️ Кнопка нажата. Отправляем запрос на токен...');
-                
-                // ВАЖНО: group_id уже установлен на ID твоего сообщества ХК ПСБ
-                VKBridge.send('VKWebAppGetAuthToken', {
-                    group_id: 239900520, 
-                    scope: 'wall,polls,offline'
-                });
-            });
-        });
-
-        // 4. Обработка успешного получения токена
-        VKBridge.on('VKWebAppGetAuthTokenResult', (e) => {
-            const token = e.detail.access_token;
-            const log = document.getElementById('log');
-
-            console.log('🔑 ТОКЕН ДЛЯ N8N:', token);
-            
-            // Показываем токен в блоке на странице (для удобства)
-            log.style.display = 'block';
-            log.textContent = 'Токен: ' + token;
-
-            // Выводим предупреждение — токен нужно скопировать из консоли (F12)
-            alert('Скопируй токен из консоли браузера (F12 → Console):\n' + token);
-        });
-
-        // 5. Обработка любых ошибок
-        VKBridge.on('VKWebAppError', (e) => {
-            console.error('❌ Ошибка VK Bridge:', e);
-            alert('Ошибка: ' + JSON.stringify(e.detail));
-        });
-    </script>
-</body>
-</html>
+        // ВАЖНО: Не пытаемся сразу взять window.vkBridge.
