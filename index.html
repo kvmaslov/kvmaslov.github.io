@@ -54,7 +54,7 @@
             border-radius: 8px;
             max-width: 100%;
             word-break: break-all;
-            display: none; /* По умолчанию скрыт */
+            display: none;
         }
     </style>
 </head>
@@ -91,7 +91,7 @@
             btn.addEventListener('click', () => {
                 console.log('🖱️ Кнопка нажата. Отправляем запрос на токен...');
                 
-                // ВАЖНО: замени group_id на ID своей группы ВКонтакте
+                // ВАЖНО: group_id уже установлен на ID твоего сообщества ХК ПСБ
                 VKBridge.send('VKWebAppGetAuthToken', {
                     group_id: 239900520, 
                     scope: 'wall,polls,offline'
