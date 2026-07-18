@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Хоккей — Опросы</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f0f2f5; }
+    .card { background: #fff; border-radius: 12px; padding: 24px; max-width: 360px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .btn { display: inline-block; padding: 12px 24px; background: #0077ff; color: #fff; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; }
+    .ok { background: #e8f5e9; color: #2e7d32; }
+    .err { background: #fbe9e7; color: #c62828; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🏒 Опросы тренировок</h2>
+    <p>Создать опросы ПН и ЧТ в Чате тренировок</p>
+    <button class="btn" id="btn" onclick="go()">Создать опросы</button>
+    <div id="status"></div>
+  </div>
+
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+  <script>
+    const WEBHOOK = "https://webhook.nodul.ru/24023/dev/bbfaf4a8-6451-4ace-ae22-05383091189f";
+
+    function setStatus(ok, text) {
+      const s = document.getElementById("status");
+      s.className = "status " + (ok ? "ok" : "err");
+      s.textContent = text;
+    }
+
+    async function go() {
+      const btn = document.getElementById("btn");
+      btn.disabled = true;
+      btn.textContent = "Запрашиваю токен...";
+      setStatus(true, "⏳ Запрашиваю доступ...");
+
+      try {
+        const auth = await vkBridge.send("VKWebAppGetAuthToken", {
+          app_id: 54683380,
+          scope: "wall,groups"
+        });
+
+        if (!auth.access_token) {
+          setStatus(false, "❌ Токен не получен");
+          btn.disabled = false;
+          btn.textContent = "Попробовать снова";
+          return;
+        }
+
+        btn.textContent = "Создаю опросы...";
+        setStatus(true, "⏳ Отправляю запрос в Nodul...");
+
+        const resp = await fetch(WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vk_token: auth.access_token })
+        });
+
+        const result = await resp.json();
+
+        if (result.poll_monday && !result.poll_monday.error) {
+          setStatus(true, `✅ Готово! Опросы на ПН ${result.monday} и ЧТ ${result.thursday} созданы.`);
+        } else {
+          setStatus(false, `⚠️ Ошибка VK: ${JSON.stringify(result.poll_monday?.error || result.poll_thursday?.error)}`);
+        }
+      } catch (e) {
+        setStatus(false, "❌ " + (e.message || "Ошибка сети"));
+      }
+
+      btn.disabled = false;
+      btn.textContent = "Создать опросы";
+    }
+  </script>
+</body>
+</html>
